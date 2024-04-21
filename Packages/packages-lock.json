@@ -1,5 +1,14 @@
 {
   "dependencies": {
+    "com.bennykok.hierarchy-header": {
+      "version": "https://github.com/BennyKok/unity-hierarchy-header.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.settings-manager": "1.0.3"
+      },
+      "hash": "225224b9497292f815cdc951dcb069ab3cd26aaa"
+    },
     "com.unity.collab-proxy": {
       "version": "2.3.1",
       "depth": 0,
@@ -97,7 +106,7 @@
     },
     "com.unity.settings-manager": {
       "version": "2.0.1",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
