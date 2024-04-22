@@ -1,46 +1,81 @@
 using UnityEngine;
 
-public class UnicornController : MonoBehaviour
+public class PlayerController : MonoBehaviour
 {
-    public float walkSpeed = 2.0f;
-    public float flySpeed = 5.0f;
-    public float flightHeight = 10.0f;
-    public float turnSpeed = 5.0f;
-    private bool isFlying = false;
+    public float walkSpeed = 5f;
+    public float flySpeed = 10f;
+    public float flyIncrement = 2f;  // How much to increase height each time Shift is pressed
+    public float maxFlyHeight = 20f; // Maximum flying height
 
-    private Animator animator;
-    private Vector3 targetPosition;
+    private Rigidbody rb;
+    private bool isFlying = false;
+    private float currentFlyHeight = 0f;
 
     void Start()
     {
-        animator = GetComponent<Animator>();
-        targetPosition = transform.position;
+        rb = GetComponent<Rigidbody>();
+        if (!rb)
+        {
+            Debug.LogError("Rigidbody component is missing from the player object.");
+        }
     }
 
-    void FixedUpdate()
+    void Update()
     {
-        Vector3 move = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        move = transform.TransformDirection(move);
-        move.Normalize();
+        float moveHorizontal = Input.GetAxis("Horizontal");
+        float moveVertical = Input.GetAxis("Vertical");
 
-        float speed = isFlying ? flySpeed : walkSpeed;
-        targetPosition += move * speed * Time.fixedDeltaTime;
+        Vector3 movement = new Vector3(moveHorizontal, 0.0f, moveVertical);
+        HandleMovement(movement);
+        HandleFlyingToggle();
 
-        transform.position = Vector3.Lerp(transform.position, targetPosition, 0.1f);
-        if (move != Vector3.zero)
+        // Update the animator's flying state
+        Animator animator = GetComponent<Animator>();
+        if (animator)
         {
-            Quaternion toRotation = Quaternion.LookRotation(move, Vector3.up);
-            transform.rotation = Quaternion.Lerp(transform.rotation, toRotation, turnSpeed * Time.fixedDeltaTime);
+            animator.SetBool("isFlying", isFlying);
+        }
+        else
+        {
+            Debug.LogWarning("No Animator component found on the player object.");
+        }
+    }
+
+    private void HandleMovement(Vector3 movement)
+    {
+        movement = transform.TransformDirection(movement);  // Transform movement vector from local to world space
+
+        if (movement != Vector3.zero) // Check if there is any movement input
+        {
+            Quaternion newRotation = Quaternion.LookRotation(movement);
+            rb.rotation = Quaternion.Slerp(rb.rotation, newRotation, Time.deltaTime * 5f);  // Adjust rotation speed if needed
         }
 
-        animator.SetBool("isFlying", isFlying);
-        animator.SetFloat("Speed", move.magnitude);
+        if (!isFlying)
+        {
+            rb.MovePosition(rb.position + movement * walkSpeed * Time.deltaTime);
+        }
+        else
+        {
+            Vector3 flyMovement = movement * flySpeed * Time.deltaTime + Vector3.up * (currentFlyHeight * Time.deltaTime);
+            rb.MovePosition(rb.position + flyMovement);
+        }
+    }
 
+    private void HandleFlyingToggle()
+    {
         if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
         {
             isFlying = !isFlying;
-            float newY = isFlying ? flightHeight : 0;
-            targetPosition = new Vector3(targetPosition.x, newY, targetPosition.z);
+            if (isFlying && currentFlyHeight < maxFlyHeight)
+            {
+                currentFlyHeight += flyIncrement;
+                currentFlyHeight = Mathf.Min(currentFlyHeight, maxFlyHeight);
+            }
+            else if (!isFlying)
+            {
+                currentFlyHeight = 0f;  // Reset height when landing
+            }
         }
     }
 }
