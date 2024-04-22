@@ -2,14 +2,17 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float walkSpeed = 5f;
+     public float walkSpeed = 5f;
     public float flySpeed = 10f;
-    public float flyIncrement = 2f;  // How much to increase height each time Shift is pressed
-    public float maxFlyHeight = 20f; // Maximum flying height
+    public float rotationSpeed = 2f; // Slower rotation speed for more gradual turning
+    public float flyIncrement = 0.05f;
+    public float maxFlyHeight = 20f;
+    public float timeToReachMaxHeight = 20f; // Time to reach maximum height for smoother ascent
 
     private Rigidbody rb;
     private bool isFlying = false;
     private float currentFlyHeight = 0f;
+    private float timeFlying = 0f;
 
     void Start()
     {
@@ -29,11 +32,14 @@ public class PlayerController : MonoBehaviour
         HandleMovement(movement);
         HandleFlyingToggle();
 
-        // Update the animator's flying state
         Animator animator = GetComponent<Animator>();
         if (animator)
         {
+            bool isMoving = movement.magnitude > 0;
+            animator.SetBool("isRunning", isMoving && !isFlying);
             animator.SetBool("isFlying", isFlying);
+            if (!isMoving && !isFlying)
+                animator.Play("IdleA");
         }
         else
         {
@@ -43,38 +49,43 @@ public class PlayerController : MonoBehaviour
 
     private void HandleMovement(Vector3 movement)
     {
-        movement = transform.TransformDirection(movement);  // Transform movement vector from local to world space
-
-        if (movement != Vector3.zero) // Check if there is any movement input
+        movement = transform.TransformDirection(movement);
+        if (movement != Vector3.zero)
         {
             Quaternion newRotation = Quaternion.LookRotation(movement);
-            rb.rotation = Quaternion.Slerp(rb.rotation, newRotation, Time.deltaTime * 5f);  // Adjust rotation speed if needed
+            rb.rotation = Quaternion.Slerp(rb.rotation, newRotation, Time.deltaTime * rotationSpeed);
         }
 
-        if (!isFlying)
-        {
-            rb.MovePosition(rb.position + movement * walkSpeed * Time.deltaTime);
-        }
-        else
-        {
-            Vector3 flyMovement = movement * flySpeed * Time.deltaTime + Vector3.up * (currentFlyHeight * Time.deltaTime);
-            rb.MovePosition(rb.position + flyMovement);
-        }
+        Vector3 newPosition = rb.position + movement * (isFlying ? flySpeed : walkSpeed) * Time.deltaTime;
+        newPosition.y += currentFlyHeight;
+        rb.MovePosition(newPosition);
     }
+
 
     private void HandleFlyingToggle()
     {
-        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetKeyDown(KeyCode.RightShift))
+        if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
         {
-            isFlying = !isFlying;
-            if (isFlying && currentFlyHeight < maxFlyHeight)
+            if (!isFlying) // Start flying
             {
-                currentFlyHeight += flyIncrement;
-                currentFlyHeight = Mathf.Min(currentFlyHeight, maxFlyHeight);
+                isFlying = true;
+                timeFlying = 0f; // Reset flying timer
             }
-            else if (!isFlying)
+
+            timeFlying += Time.deltaTime;
+            currentFlyHeight = Mathf.Lerp(0f, maxFlyHeight, timeFlying / timeToReachMaxHeight);
+            currentFlyHeight = Mathf.Min(currentFlyHeight, maxFlyHeight);
+        }
+        else if (isFlying)
+        {
+            // Gradually decrease height when not holding shift, slower than before
+            timeFlying -= Time.deltaTime * 0.1f; // Decrease timeFlying more slowly
+            timeFlying = Mathf.Max(timeFlying, 0f);
+            currentFlyHeight = Mathf.Lerp(0f, maxFlyHeight, timeFlying / timeToReachMaxHeight);
+
+            if (timeFlying == 0f)
             {
-                currentFlyHeight = 0f;  // Reset height when landing
+                isFlying = false; // Stop flying once height has decreased to the minimum
             }
         }
     }
