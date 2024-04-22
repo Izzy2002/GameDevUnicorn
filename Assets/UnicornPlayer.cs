@@ -2,14 +2,16 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-     public float walkSpeed = 5f;
+    public float walkSpeed = 5f;
     public float flySpeed = 10f;
     public float rotationSpeed = 2f; // Slower rotation speed for more gradual turning
     public float flyIncrement = 0.05f;
     public float maxFlyHeight = 20f;
     public float timeToReachMaxHeight = 20f; // Time to reach maximum height for smoother ascent
+    public GameObject magicEffectPrefab;  // Drag the Rainbow Magic FX prefab here in the Inspector
 
-    private Rigidbody rb;
+    private Rigidbody rb;  // Only one declaration of rb
+    private Animator animator;
     private bool isFlying = false;
     private float currentFlyHeight = 0f;
     private float timeFlying = 0f;
@@ -17,9 +19,14 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        animator = GetComponent<Animator>();
         if (!rb)
         {
             Debug.LogError("Rigidbody component is missing from the player object.");
+        }
+        if (!animator)
+        {
+            Debug.LogError("Animator component is missing from the player object.");
         }
     }
 
@@ -31,8 +38,8 @@ public class PlayerController : MonoBehaviour
         Vector3 movement = new Vector3(moveHorizontal, 0.0f, moveVertical);
         HandleMovement(movement);
         HandleFlyingToggle();
+        HandleAttack();  // Ensure the attack handler is called in Update
 
-        Animator animator = GetComponent<Animator>();
         if (animator)
         {
             bool isMoving = movement.magnitude > 0;
@@ -61,7 +68,6 @@ public class PlayerController : MonoBehaviour
         rb.MovePosition(newPosition);
     }
 
-
     private void HandleFlyingToggle()
     {
         if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
@@ -89,4 +95,27 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+
+    private void HandleAttack()
+{
+    if (Input.GetMouseButtonDown(1)) // Right-click
+    {
+        animator.SetTrigger("isAttacking");
+        animator.SetBool("isRunning", false); // Ensure no conflicting states
+        InstantiateMagicEffect();
+    }
+}
+
+private void InstantiateMagicEffect()
+{
+    if (magicEffectPrefab)
+    {
+        // Adjusted to instantiate the effect at a point in front of and slightly above the player
+        Instantiate(magicEffectPrefab, transform.TransformPoint(0, 1, 1), Quaternion.identity);
+    }
+    else
+    {
+        Debug.LogWarning("Magic effect prefab is not assigned.");
+    }
+}
 }
